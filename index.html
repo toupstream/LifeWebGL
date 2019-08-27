@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Untitled</title>
+    <script src="libraries/p5.js" type="text/javascript"></script>
+    <script src="dot.js" type="text/javascript"></script>
+
+    <script src="libraries/p5.dom.js" type="text/javascript"></script>
+    <script src="libraries/p5.sound.js" type="text/javascript"></script>
+
+    <script src="sketch.js" type="text/javascript"></script>
+
+    <link rel="stylesheet" type="text/css" href="jquery-ui-1.8.16.custom.css" />
+    <link rel="stylesheet" type="text/css" href="bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" type="text/css" href="main.css" />
+    <script src="jquery-1.8.2.min.js"></script>
+    <script src="jquery-ui-1.9.0.custom.min.js"></script>
+    <script src="jquery.mousewheel.js"></script>
+    <script src="underscore-min-1.4.2.js"></script>
+    <script src="bootstrap/js/bootstrap.min.js"></script>
+    <script src="gl-matrix-min.js"></script>
+    <script src="util.js"></script>
+    <script src="3d.js"></script>
+    <script src="main.js"></script>
+
+<!--     <style> body {padding: 0; margin: 0;} canvas {vertical-align: top;} </style> -->
+
+    <!-- shaders -->
+        <script id="cell-random-noise-fs" type="x-shader/x-fragment">
+      #version 100
+        precision mediump float;
+        varying vec2 fragmentPosition;
+        uniform vec2 seed;
+        float rand (vec2 co){
+          return fract (sin (dot (co.xy ,vec2 (12.9898,78.233))) * 43758.5453);
+      }
+        void main (void) {
+          float noise = rand (fragmentPosition + seed) > 0.6 ? 1.0 : 0.0;
+            gl_FragColor = vec4 (noise, 1, 0, 1);
+        }
+    </script>
+    <script id="cell-iteration-fs" type="x-shader/x-fragment">
+      #version 100
+        precision highp float;
+        varying vec2 texCoord;
+        uniform sampler2D previousStep;
+        uniform vec2 screenSpace;
+        uniform sampler2D rules;
+        vec4 pixelAt (vec2 offset) {
+          return texture2D (previousStep, texCoord + offset * screenSpace);
+        }
+        void main (void) {
+          vec4 cell = pixelAt (vec2 ( 0,  0));
+          float neighbours =
+              (pixelAt (vec2 (-1.0, -1.0)) +
+               pixelAt (vec2 ( 0.0, -1.0)) +
+               pixelAt (vec2 ( 1.0, -1.0)) +
+               pixelAt (vec2 ( 1.0,  0.0)) +
+               pixelAt (vec2 ( 1.0,  1.0)) +
+               pixelAt (vec2 ( 0.0,  1.0)) +
+               pixelAt (vec2 (-1.0,  1.0)) +
+               pixelAt (vec2 (-1.0,  0.0))).x;
+          vec4 decision = texture2D (rules, vec2 (neighbours / 16.0, 0.0)); 
+          if (cell.x < 0.9 && decision.g > 0.0) {
+            gl_FragColor = vec4 (1.0, 1.0, 0.0, 1.0);
+          } else if (cell.x > 0.0 && decision.r > 0.0) {
+            gl_FragColor = vec4 (0.0, 1.0, cell.z, 1.0);
+          } else {
+            gl_FragColor = cell * vec4 (1.0, 0.994, 1.0, 1.0);
+          }
+        }
+    </script>
+        <script id="cell-vs-pixeloffset" type="x-shader/x-vertex">
+      #version 100
+      precision highp float;
+        attribute vec3 position;
+        uniform vec2 pixelOffset;
+        varying vec2 fragmentPosition;
+        varying vec2 texCoord;
+        void main (void) {
+          fragmentPosition = position.xy;
+          texCoord = (position.xy + 1.0) * 0.5;
+            gl_Position = vec4 (position.xy + pixelOffset, 0.0, 1.0);
+        }
+    </script>
+    <script id="cell-vs" type="x-shader/x-vertex">
+      #version 100
+      precision mediump float;
+        attribute vec3 position;
+        varying vec2 fragmentPosition;
+        varying vec2 texCoord;
+        void main (void) {
+          fragmentPosition = position.xy;
+          texCoord = (position.xy + 1.0) * 0.5;
+            gl_Position = vec4 (position.xy, 0.0, 1.0);
+        }
+    </script>
+  </head>
+  <body>
+    <div class="viewport-container">
+      <canvas class="viewport" />
+    </div>
+  </body>
+</html>
